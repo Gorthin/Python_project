@@ -14,9 +14,13 @@ def caesar_cipher(message, key):
             if i.isupper():
                 if number > 90:
                     number -= 26
+                elif number <65:
+                    number += 26
             else:
                 if number > 122:
                     number -= 26
+                elif number < 97:
+                    number += 26
             enc_msg += chr(number)
         else:
             enc_msg += i
