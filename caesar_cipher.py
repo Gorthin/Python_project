@@ -9,14 +9,17 @@ key = int(input())
   # variable storing the encrypted message
 enc_msg = ''
 for i in message:
-    number = ord(i)
-    number += key
-    if i.isupper():
-        if number > 90:
-            number -= 26
+    if i.isalpha():
+        number = ord(i)
+        number += key
+        if i.isupper():
+            if number > 90:
+                number -= 26
+        else:
+            if number > 122:
+                number -= 26
+        enc_msg += chr(number)
     else:
-        if number > 122:
-            number -= 26
-    enc_msg += chr(number)
+        enc_msg += i
 
 print("Your encrypted message is:", enc_msg)
