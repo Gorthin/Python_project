@@ -22,4 +22,15 @@ def sieve(n):
 
     return primes
 
+def sieve2(n):
+    primes =[]
+    temp = [True] * (n+1)
+    for i in range(2, n):
+        if temp[i]:
+            primes.append(i)
+            for j in range(i*i, n+1, i):
+                temp[j] = False
+    return primes
+
 print(sieve(100))
+print(sieve2(100))
