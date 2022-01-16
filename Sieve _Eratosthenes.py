@@ -9,11 +9,16 @@
 5 When the algorithm terminates, the numbers remaining not marked in the list are all the primes below n.'''
 
 def sieve(n):
-    primes = [1 for x in range(n+1)]
+    temp = [1 for x in range(n+1)]
     for i in range(2,n):
         for j in range(i+1, n):
             if j % i == 0:
-                primes[j] = 0
+                temp[j] = 0
+    primes = []
+    for i in range(len(temp)):
+        if temp[i] == 0:
+            primes.append(i)
+
     return primes
 
 print(sieve(30))
