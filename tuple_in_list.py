@@ -12,3 +12,10 @@ TABLE = [('S_Lenght', 'S_Width', 'P_Lenght', 'P_Width', 'Special'),
         (9, 4, 2, 3, 'edente'),
         (6, 2, 8, 9, 'aserty')]
 
+# print(TABLE[1][4])
+def display_row(special):
+    special = TABLE[1:]
+    for i in special:
+        print(i[4])
+
+display_row(TABLE)
