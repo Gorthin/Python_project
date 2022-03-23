@@ -24,10 +24,20 @@ def screen(root):
 
     return screen
 
+def buttons_app(root):
+    buttons = [
+        tk.Button(root, text='symbol', bg=COLOR, borderwidth=0)
+    ]
+
+    return buttons
+
+
 if __name__ == "__main__":
 
     root = window_app()
 
     screen = screen(root)
+
+    buttons = buttons_app(root)
 
     root.mainloop()
