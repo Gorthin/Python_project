@@ -1,0 +1,3 @@
+Zalogowany użytkownik:  piotr
+Na naukę Pythona nigdy nie jest za późno!
+Ta książka zostanie wydana w 2021 roku

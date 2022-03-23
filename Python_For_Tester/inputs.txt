@@ -1,0 +1,3 @@
+Linijka_1
+A to jest drugi wiersz
+Trzeci wiersz pliku
