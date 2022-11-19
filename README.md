@@ -1,3 +1,1 @@
-# python_project
-
-Testowy tekst do ćwiczenia commitów
+A collection of various tasks as part of your Python exercises
