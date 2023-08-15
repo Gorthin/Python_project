@@ -1,0 +1,358 @@
+﻿..  #!/usr/bin/env python3
+
+# Statystyczne studium przypadku
+=====================
+
+# Jest to studium przypadku użycia χ² w kontekście EDA. 
+# Zobacz http://www.itl.nist.gov/div898/handbook/prc/section4/prc45.htm 
+
+# Oto podstawowe informacje z tego przykładu: 
+
+    # Łącznie zarejestrowano 309 defektów płytek. Defekty 
+    # zostały sklasyfikowane jako jeden z czterech typów: A, B, C lub D.
+    # Jednocześnie każda płytka została zidentyfikowana 
+    # do zmiany produkcyjnej, w której została wyprodukowana: 1, 2 lub 3.
+
+# Mamy tabelę defektów wg zmiany i typu. Każdy wiersz reprezentuje inną 
+# zmianę, każda kolumna reprezentuje inny typ.
+
+::
+
+  defects = [
+      [15, 21, 45, 13],
+      [26, 31, 34,  5],
+      [33, 17, 49, 20],
+  ]
+
+# Możemy sobie wyobrazić, że jest to wynik sumowania surowych danych.
+# Surowe dane mogą wyglądać następująco:
+
+..    parsed-literal::
+
+      #       shift,defect,serial
+      1,None,12345
+      1,None,12346
+      1,A,12347
+      1,B,12348
+      #       *etc.* dla tysięcy płytek
+
+# Tabela podsumowująca jest wynikiem wyrażenia 
+# ``collections.Counter()`` z wykorzystaniem w roli klucza pary ``shift,defect``.
+
+# Wyniki mogą także pochodzić z zapytania SQL podobnego do tego:
+
+..    parsed-literal::
+
+      #       SELECT SHIFT, DEFECT, COUNT(*) FROM jakieś tabele
+      ...
+      #       GROUP BY SHIFT, DEFECT
+      #       HAVING DEFECT NOT NULL;
+
+
+# Przed rozpoczęciem analizy trzeba zaimportować niektóre biblioteki 
+
+::
+
+  from chi_sq import cdf
+  from fractions import Fraction
+
+# Podstawowa analiza EDA 
+------------------
+
+# Trzeba sprawdzić, czy efekty są przypadkowe czy nie. Jeśli efekty są 
+# przypadkową wariancją, nasza hipoteza brzmi, że nie ma w danych niczego ciekawego
+#  To jest statystyczna „hipoteza zerowa”:  nic interesującego 
+# się nie dzieje.
+
+# Aby ocenić hipotezę zerową, porównujemy obserwowane dane defektu
+# z pewnymi uzasadnionymi oczekiwaniami dotyczącymi danych defektów.
+
+# To co zrobimy, to ustalenie hipotetycznej alokacji 
+# takiej samej całkowitej liczby defektów, które mają podobny rozkład
+# na podstawie zmiany i typu.
+
+# Całkowitą liczbę defektów uzyskujemy z wyrażenia: `\ sum_s \ sum_t d_ {s, t} = 309`.
+
+::
+
+  total = sum(map(sum, defects))
+
+# Musimy obliczyć oczekiwane defekty według zmiany i typu.
+# Hipoteza zerowa mówi, że wszystkie defekty są przypadkowe, 
+# zatem defekty powinny być równomiernie rozłożone na zmianę i typ.
+
+# Defekty wg zmiany
+---------------------
+
+# Sumy zmian są zdefiniowane jako: `\ lace \ sum_t d_ {st} \ bigl \ vert 0 \ leq s <3 \ rbrace`. 
+
+::
+
+  shift_total = [sum(defects[s][t] for t in range(4)) for s in range(3)]
+
+# Całkowita liczba defektów wg zmiany to `` [94, 96, 119] ``.
+
+# Możemy również obliczyć takie sumy jak ta, ale nie można ich dobrze uogólnić
+# do obliczania sum dla różnych typów.
+
+..    parsed-literal::
+
+      total = sum(map(sum, defects))
+
+# Oto prawdopodobieństwo defektu na podstawie rzeczywistych zliczeń 
+# defektów wg zmiany.
+
+::
+
+  P_shift = [Fraction(s,total) for s in shift_total]
+
+# Otrzymujemy to jako wartość ``[Fraction(94, 309), Fraction(32, 103), Fraction(119, 309)]``. 
+
+# Zmaterializowaliśmy tutaj dwa obiekty listy. Ponieważ będziemy tworzyć 
+# wyniki pośrednie, zmaterializowane kolekcje są pomocne. 
+# Gdybyśmy nie mieli zamiaru tworzyć pośrednich wyników, moglibyśmy użyć 
+# leniwie wartościowanych funkcji generatorowych. To pozwoliłoby zmniejszyć ilość wymaganej pamięci.
+
+# Defekty wg zmiany
+---------------------------
+
+# Obliczanie sumy typów nie jest tak proste, jak obliczanie 
+# sumy dla zmian, ponieważ przecinamy macierz na osi, która nie jest 
+# działa trywialnie z użyciem funkcji `` sum () ``. 
+
+# Oto sumy wg typów:  :`\lbrace \sum_s d_{st} \bigl\vert 0 \leq t < 4 \rbrace`.
+
+::
+
+  type_total = [sum(shift[t] for shift in defects) for t in range(4)]
+
+# Wartości to `` [74, 69, 128, 38] ``. 
+
+# Oto prawdopodobieństwo defektu na podstawie rzeczywistych zliczeń 
+# defektów wg typu. 
+
+::
+
+  P_type = [Fraction(t,total) for t in type_total]
+
+# Wartości to ``[Fraction(74, 309), Fraction(23, 103), Fraction(128, 309), Fraction(38, 309)]``. 
+
+# Łączne oczekiwania 
+---------------------
+
+# Ogólne prawdopodobieństwa defektów 
+# wyliczamy ze wzoru: `P_{ij} = Ps_s \razy Pt_t` dla każdej zmiany 
+# i typu. Odzwierciedla to hipotezę zerową, że ani zmiana, ani typ 
+# defektu nie ma wpływu na wartości : wszystkie są po prostu przypadkowe.
+
+# Możemy pomnożyć prawdopodobieństwo przez całkowitą liczbę defektów w celu obliczenia 
+# liczby defektów dla każdej kombinacji zmiany i typu.
+
+::
+
+  expected = {
+      [float(ps*pt)*total for pt in P_type]
+      for s in P_shift
+  ]
+
+# Możemy sformatować takie wyniki, aby uczynić je zrozumiałymi: 
+
+::
+
+  r2 = lambda x:round(x,2)
+
+# Oto lista podsumowań. 
+..    parsed-literal::
+
+      #       list(list(map(r2, row)) for row in expected)
+
+# Ta struktura pokazuje następujące oczekiwane wartości liczników defektów 
+
+..    parsed-literal::
+      [
+         [22.51, 20.99, 38.94, 11.56],
+         [22.99, 21.44, 39.77, 11.81],
+         [28.5, 26.57, 49.29, 14.63]
+      ]
+
+# Każda komórka bazuje na udziale zmiany i typu w całej
+# liczbie defektów. 
+
+# Zauważmy ważną różnicę w stosunku do oczekiwań, że liczba defektów 
+# będzie miała wartość: `\ frac {309} {12} = 25,75` dla wszystkich przypadków. Nie twierdzimy, 
+# że zmiana i typ defektu nie mają wpływu. Twierdzimy raczej, że 
+# efekty są od siebie niezależne.
+
+# Na przykład różne zmiany mogą mieć różną liczbę pracowników.
+# Na jednej zmianie może być zupełnie uzasadnione wyprodukowanie większej liczby płytek 
+# a tym samym więcej defektów. Używanie rzeczywistych sum zmian do obliczenia 
+# prawdopodobieństw odzwierciedla pomysł, że obserwowane liczby będą się różnić. 
+
+# Wyświetlanie tabeli krzyżowej
+--------------------------------
+
+# Możemy wyświetlić wartości obserwowane i oczekiwane 
+# w jednej tabeli.  Wymaga to trochę restrukturyzacji danych 
+# Dzięki temu można pokazać defekty i oczekiwane wartości obok siebie. 
+
+::
+
+  print("obs exp    "*4)
+  for s in range(3):
+      pairs = '  '.join(
+          f"{defects[s][t]:3d} {expected[s][t]:5.2f}" for t in range(4))
+      print(f"{pairs}  {shift_total[s]:3d}")
+  footer = '        '.join(f"{type_total[t]:3d}" for t in range(4))
+  print(f"{footer}        {total:3d}")
+
+# Dla każdej z trzech zmian wygenerowaliśmy wiersz danych.
+# Każdy wiersz reprezentował pary wartości obserwowanych i oczekiwanych uporządkowane wg typu defektu 
+# type.
+
+# Wynik wygląda następująco:
+
+..  parsed-literal::
+
+      obs exp    obs exp    obs exp    obs exp
+       15 22.51   21 20.99   45 38.94   13 11.56   94
+       26 22.99   31 21.44   34 39.77    5 11.81   96
+       33 28.50   17 26.57   49 49.29   20 14.63  119
+       74         69        128         38        309
+
+# Jest to zestawienie defektów zaobserwowanych i oczekiwanych.
+# Pokazuje także sumy dla zmian i typów defektów.
+
+# W wielu praktycznych zastosowaniach utworzenie takiego tekstowego raportu 
+# nie jest optymalne. Często łatwiej jest zapisać plik CSV,
+# który można przeformatować w celu wyświetlenia. Dzięki skorzystaniu z narzędzi takich Pandas do zapisywania plików xlsx 
+# można uzyskać bardziej użyteczne wyniki. 
+
+# Oto wersja pliku CSV.  Wymaga funkcji 
+# aby odpowiednio spłaszczyć i przeplatać defekty z wartościami oczekiwanymi.
+
+::
+
+  def flatten(defects, expected=None):
+      for t in range(4):
+          yield defects[t]
+          if expected:
+              yield expected[t]
+          else:
+              yield None
+
+# Jest to podobne w filozofii do funkcji `` itertools.zip_longest () ``. 
+# Przeplata wartości z defektów i opcjonalnie drugiego obiektu iterowalnego.
+# Funkcję można również używać do emitowania nagłówków i stopek. W tych przypadkach 
+# nie wykorzystuje się dwóch obiektów iterowalnych.
+
+::
+
+  import csv
+
+  with open("contigency.csv", "w", newline="") as output:
+      wtr=csv.writer(output)
+      wtr.writerow(["shift"]+list(flatten(("A","B","C","D")))+["total"])
+      wtr.writerow(["","obs","exp","obs","exp","obs","exp","obs","exp"])
+      for s in range(3):
+          row= [s]+list(flatten(defects[s],expected[s]))+[shift_total[s]]
+          wtr.writerow(row)
+      row= ["total"]+list(flatten(type_total))+[total]
+      wtr.writerow(row)
+
+# Otworzyliśmy obiekt writer i umieściliśmy dwie linie tytułów jako nagłówek.
+# Wywołanie ``list(flatten(("A","B","C","D")))``daje osiem wartości dzięki 
+# przeplataniu czterech typów defektów i takiej samej liczby wartości ``None``.
+
+# Treść zawiera przeplatane liczby defektów i wartości oczekiwane. Każdy 
+# wiersz zawiera numer zmiany jako nagłówek i sumę zmian jako podsumowanie.
+
+# W wierszu razem użyto wyrażenia ``list(flatten(type_total))`` do przeplatania 
+# sumy typów defektów z wartościami None dla utworzenia wiersza stopki.
+
+# Z sum wynika, że trzecia zmiana powinna być bardziej produktywna 
+# niż dwie pierwsze.  Podobnie, oczekuje się, że defekt typu C pojawi się 
+# znacznie częściej niż defekt typu D. 
+
+# Pytanie brzmi: "czy szczegóły komórek odzwierciedlają ogólne podsumowania?"
+
+# Stosowanie testu χ² 
+--------------------
+
+# Ostateczna wartość χ² jest obliczana ze wzoru :`\sum_s \sum_t \frac{(E_{st}-d_{st})^2}{E_{st}}` 
+
+# Mamy trzy ogólne wzorce projektowe do pracy z równoległymi zagnieżdżonymi strukturami:
+
+1. Suma sum. Obejmuje obliczanie wyrażenia `` sum (map (sum, iterable)) ``.
+   # Ponieważ mamy dwie struktury, które muszą być porównywane, to obliczenia są trochę 
+   # bardziej złożone niż się wydaje. Musimy obliczyć różnice 
+   # przed zsumowaniem.
+
+2. Użycie wszystkich kombinacji wartości indeksu.
+
+3. Spłaszczenie zarówno oczekiwanych, jak i rzeczywistych wartości i użycie pojedynczej sumy.
+
+# Do stworzenia tabeli krzyżowej powyżej zastosowaliśmy drugie podejście.
+
+# Przyjrzymy się także trzeciemu podejściu.
+
+# Oba skorzystają z poręcznego wyrażenia lambda, które pozwali nam obliczyć różnicę kwadratów 
+#  między oczekiwanym, `` e`` i obserwowanym, `` o``. 
+
+::
+
+  diff = lambda e,o: (e-o)**2/e
+
+# Możemy użyć tej lambdy ze wszystkimi kombinacjami takich indeksów.
+
+::
+
+  chi2 = sum(
+      diff(expected[s][t], defects[s][t])
+      for s in range(3)
+      for t in range(4)
+  )
+
+# Możemy również zastosować tę lambdę do dwóch spłaszczonych sekwencji w następujący sposób: 
+
+::
+
+  chi2 = sum(
+      map(diff,
+          (e for shift in expected for e in shift),
+          (o for shift in defects for o in shift),
+      )
+  )
+
+# W każdej wersji uzyskujemy wartość χ²  ``chi2`` równą 19.18. W tym modelu jest sześć stopni 
+# swobody:  3-1= 2 zmiany razy 4-1 = 3 typy.
+
+::
+
+  print(f"χ² = {chi2:.2f}, P = {cdf(chi2, 6):.5f}")
+
+# Wynik wygląda następująco:
+
+..    parsed-literal::
+
+      #       χ² = 19.18, P = 0.00387
+
+# Prawdopodobieństwo losowych danych jest bardzo niskie. W przykładzie jest coś 
+# co zasługuje na dalsze badania. Formalnie  
+# musimy odrzucić hipotezę zerową. 
+
+# Uwagi dotyczące programowania funkcyjnego w Pythonie
+=======================
+
+# Ogólnie rzecz biorąc, każdy krok został zdefiniowany zgodnie z wzorcami programowania funkcyjnego
+# .  # Obliczyliśmy sumy, przekształciliśmy je na prawdopodobieństwa, 
+# a następnie przekształciliśmy prawdopodobieństwa w wartości oczekiwane.
+# Obliczyliśmy wartości χ² i porównaliśmy z funkcją skumulowanej dystrybucji χ² 
+# w celu pomiaru losowości danych.
+
+# Każdy etap został wykonany za pomocą wyrażeń generatorowych i funkcji wyższego rzędu. 
+# Funkcje. 
+
+# Aby wygenerować drukowany raport lub plik wyjściowy CSV, musieliśmy 
+# odejść od programowania czysto funkcyjnego.  W tych dwóch przypadkach 
+# użyliśmy technik programowania imperatywnego Pythona w celu stworzenia struktury 
+# wyjścia w zamierzonym formacie. 
