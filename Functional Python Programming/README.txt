@@ -1,0 +1,1 @@
+Wszystkie pliki kodu s¹ umieszczane w odpowiednich folderach.
